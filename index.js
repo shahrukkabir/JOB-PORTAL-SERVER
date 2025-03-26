@@ -2,7 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const app = express();
 const port = process.env.PORT || 5000;
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 require('dotenv').config();
 
 app.use(cors());
@@ -24,22 +24,52 @@ async function run() {
         await client.connect();
         console.log("Connected to MongoDB!");
 
-        // You can set up database collections here
-        const database = client.db("JobPortal");
-        const collection = database.collection("jobs");
+        // jobs related apis
+        const jobsCollection = client.db("JobPortal").collection("jobs");
 
-    } catch (error) {
+        //get all data
+        app.get('/jobs', async (req, res) => {
+            const cursor = jobsCollection.find();
+            const result = await cursor.toArray();
+            res.send(result);
+        });
+
+        //get one data
+        app.get('/jobs/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) }
+            const result = await jobsCollection.findOne(query);
+            res.send(result);
+        })
+
+        const jobApplicationCollection = client.db("JobPortal").collection("job_application");
+        
+        //job application api
+        app.post('/job-applications', async (req, res) => {
+            const application = req.body;
+            const result = await jobApplicationCollection.insertOne(application);
+            res.send(result);
+        })
+        
+        //get some data
+        app.get('/job-application', async (req, res) => {
+            const email = req.query.email;
+            const query = {applicant_email: email}
+            const result = await jobApplicationCollection.find(query).toArray();
+            res.send(result);
+        })
+    }
+    catch (error) {
         console.error("MongoDB connection error:", error);
     }
 }
 
-run(); // Do not close the connection
+run();
 
 app.get('/', (req, res) => {
     res.send('Job is failing from the sky');
 });
 
-// Fix the console log message
 app.listen(port, () => {
     console.log(`Job is waiting at : ${port}`);
 });
