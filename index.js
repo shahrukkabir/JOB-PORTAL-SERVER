@@ -43,21 +43,54 @@ async function run() {
         })
 
         const jobApplicationCollection = client.db("JobPortal").collection("job_application");
-        
+
         //job application api
         app.post('/job-applications', async (req, res) => {
             const application = req.body;
             const result = await jobApplicationCollection.insertOne(application);
             res.send(result);
         })
-        
+
         //get some data
         app.get('/job-application', async (req, res) => {
             const email = req.query.email;
-            const query = {applicant_email: email}
+            const query = { applicant_email: email }
             const result = await jobApplicationCollection.find(query).toArray();
+
+            for (const application of result) {
+                console.log(application.job_id)
+                const query1 = { _id: new ObjectId(application.job_id) }
+                const job = await jobsCollection.findOne(query1);
+                if (job) {
+                    application.title = job.title;
+                    application.location = job.location;
+                    application.company = job.company;
+                    application.company_logo = job.company_logo;
+                }
+            }
             res.send(result);
         })
+
+        // Delete a job application by ID
+        app.delete('/job-application/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) };
+
+            try {
+                const result = await jobApplicationCollection.deleteOne(query);
+                if (result.deletedCount > 0) {
+                    res.send({ success: true, message: "Job application deleted successfully" });
+                } else {
+                    res.status(404).send({ success: false, message: "Job application not found" });
+                }
+            } catch (error) {
+                console.error("Error deleting job application:", error);
+                res.status(500).send({ success: false, message: "Server error" });
+            }
+        });
+
+
+
     }
     catch (error) {
         console.error("MongoDB connection error:", error);
