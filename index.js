@@ -29,7 +29,12 @@ async function run() {
 
         //get all data
         app.get('/jobs', async (req, res) => {
-            const cursor = jobsCollection.find();
+            const email = req.query.email;
+            let query = {};
+            if (email) {
+                query = { hr_email: email };
+            }
+            const cursor = jobsCollection.find(query);
             const result = await cursor.toArray();
             res.send(result);
         });
@@ -42,12 +47,47 @@ async function run() {
             res.send(result);
         })
 
+        app.post('/jobs', async (req, res) => {
+            const newJob = req.body;
+            const result = await jobsCollection.insertOne(newJob);
+            res.send(result);
+        })
+
         const jobApplicationCollection = client.db("JobPortal").collection("job_application");
 
         //job application api
         app.post('/job-applications', async (req, res) => {
             const application = req.body;
             const result = await jobApplicationCollection.insertOne(application);
+
+            const id = application.job_id;
+            const query = { _id: new ObjectId(id) }
+            const job = await jobsCollection.findOne(query);
+            let newCount = 0;
+            if (job.applicationCount) {
+                newCount = job.applicationCount + 1;
+            }
+            else {
+                newCount = 1;
+            }
+            // now update the job info
+            const filter = { _id: new ObjectId(id) };
+            const updatedDoc = {
+                $set: {
+                    applicationCount: newCount
+                }
+            }
+            const updateResult = await jobsCollection.updateOne(filter, updatedDoc);
+
+            res.send(result);
+        })
+
+        // app.get('/job-applications/:id') ==> get a specific job application by id
+
+        app.get('/job-applications/jobs/:job_id', async (req, res) => {
+            const jobId = req.params.job_id;
+            const query = { job_id: jobId }
+            const result = await jobApplicationCollection.find(query).toArray();
             res.send(result);
         })
 
@@ -58,7 +98,7 @@ async function run() {
             const result = await jobApplicationCollection.find(query).toArray();
 
             for (const application of result) {
-                console.log(application.job_id)
+                // console.log(application.job_id)
                 const query1 = { _id: new ObjectId(application.job_id) }
                 const job = await jobsCollection.findOne(query1);
                 if (job) {
@@ -75,20 +115,23 @@ async function run() {
         app.delete('/job-application/:id', async (req, res) => {
             const id = req.params.id;
             const query = { _id: new ObjectId(id) };
+            const result = await jobApplicationCollection.deleteOne(query);
+            res.send(result);
+        })
 
-            try {
-                const result = await jobApplicationCollection.deleteOne(query);
-                if (result.deletedCount > 0) {
-                    res.send({ success: true, message: "Job application deleted successfully" });
-                } else {
-                    res.status(404).send({ success: false, message: "Job application not found" });
+        //update status
+        app.patch('/job-applications/:id', async (req, res) => {
+            const id = req.params.id;
+            const data = req.body;
+            const filter = { _id: new ObjectId(id) };
+            const updatedDoc = {
+                $set: {
+                    status: data.status
                 }
-            } catch (error) {
-                console.error("Error deleting job application:", error);
-                res.status(500).send({ success: false, message: "Server error" });
             }
-        });
-
+            const result = await jobApplicationCollection.updateOne(filter, updatedDoc);
+            res.send(result)
+        })
 
 
     }
