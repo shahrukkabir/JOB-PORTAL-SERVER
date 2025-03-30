@@ -15,19 +15,15 @@ app.use(cors({
 app.use(express.json());
 app.use(cookieParser());
 
-const logger  = (req,res,next) => {
-    console.log("Inside logger");
-    next();
-}
 
-const verifyToken = (req,res,next) => {
+const verifyToken = (req, res, next) => {
     const token = req?.cookies?.token;
-    if(!token){
-        return res.status(401).send({message : 'UnAuthorized access'});
+    if (!token) {
+        return res.status(401).send({ message: 'UnAuthorized access' });
     }
-    jwt.verify(token,process.env.JWT_SECRET,(err,decoded)=>{
-        if(err){
-            return res.status(401).send({message:'UnAuthorized access'});
+    jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+        if (err) {
+            return res.status(401).send({ message: 'UnAuthorized access' });
         }
         req.user = decoded;
         next();
@@ -53,11 +49,8 @@ async function run() {
         // jobs related apis
         const jobsCollection = client.db("JobPortal").collection("jobs");
 
-
         //Auth related apis
-
-        // generate a cryptographic random string using Node.js
-        //require('crypto').randomBytes(64).toString('hex')  
+        // generate a cryptographic random string using Node.js :->  require('crypto').randomBytes(64).toString('hex')  
 
         app.post('/jwt', async (req, res) => {
             const user = req.body;
@@ -67,8 +60,15 @@ async function run() {
                 secure: false, //for localhost
             })
                 .send({ success: true })
-
         });
+
+        app.post('/logout', (req, res) => {
+            res.clearCookie('token', {
+                httpOnly: true,
+                secure: false
+            })
+                .send({ success: true })
+        })
 
         //get all data
         app.get('/jobs', async (req, res) => {
@@ -135,15 +135,15 @@ async function run() {
         })
 
         //get some data
-        app.get('/job-application',verifyToken, async (req, res) => {
+        app.get('/job-application', verifyToken, async (req, res) => {
             const email = req.query.email;
             const query = { applicant_email: email }
 
-            if(req.user.email !== req.query.email) {
-                return res.status(403).send({message: 'forbidden access'});
+            if (req.user.email !== req.query.email) {
+                return res.status(403).send({ message: 'forbidden access' });
             }
 
-            console.log('Cookies',req.cookies);
+            console.log('Cookies', req.cookies?.token);
 
             const result = await jobApplicationCollection.find(query).toArray();
 
