@@ -9,7 +9,11 @@ require('dotenv').config();
 
 //Midleware
 app.use(cors({
-    origin: ['http://localhost:5173'],
+    origin: [
+        'http://localhost:5173',
+        'https://job-portal-5ae32.web.app',
+        'https://job-portal-5ae32.firebaseapp.com'
+    ],
     credentials: true
 }));
 app.use(express.json());
@@ -44,7 +48,7 @@ const client = new MongoClient(uri, {
 async function run() {
     try {
         await client.connect();
-        console.log("Connected to MongoDB!");
+        // console.log("Connected to MongoDB!");
 
         // jobs related apis
         const jobsCollection = client.db("JobPortal").collection("jobs");
@@ -54,10 +58,10 @@ async function run() {
 
         app.post('/jwt', async (req, res) => {
             const user = req.body;
-            const token = jwt.sign(user, process.env.JWT_SECRET, { expiresIn: '5h' });
+            const token = jwt.sign(user, process.env.JWT_SECRET, { expiresIn: '20s' });
             res.cookie('token', token, {
                 httpOnly: true,
-                secure: false, //for localhost
+                secure: process.env.NODE_ENV === "production", //for localhost
             })
                 .send({ success: true })
         });
@@ -65,7 +69,7 @@ async function run() {
         app.post('/logout', (req, res) => {
             res.clearCookie('token', {
                 httpOnly: true,
-                secure: false
+                secure: process.env.NODE_ENV === "production",
             })
                 .send({ success: true })
         })
